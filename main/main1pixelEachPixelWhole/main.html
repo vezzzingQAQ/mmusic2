@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="../support/all_style.css">
+    <script src="../support/p5.min.js"></script>
+    <script src="../support/p5sound.js"></script>
+    <script>
+        /*全局设置*/
+        let blockNum=130;
+        let frameEs=1;
+
+        let cam;
+        let img;
+        let notes=[];
+        let notesOutput=[];
+
+        let cImage;
+        let currentY=0;
+        let currentX=0;
+
+        let osc, fft;
+
+        function setup() {
+            createCanvas(windowWidth, windowHeight);
+            smooth();
+            cam=createCapture(VIDEO);
+            cam.size(windowWidth, windowHeight);
+            cam.hide();
+            {
+                cImage=cam;
+                cImage.loadPixels();
+            }
+            osc = new p5.TriOsc(); // set frequency and type
+            osc.amp(0.5);
+
+            fft = new p5.FFT();
+            osc.start();
+            {/*预加载音源*/
+                let firstCharSet=["B","C","E","G"];
+                //let firstCharSet=["C","E","G"];
+                for(var i=1;i<=7;i++){
+                    for(var j=0;j<firstCharSet.length;j++){
+                        let firstChar=firstCharSet[j];
+                        let note=loadSound(`../support/piano/${firstChar}${i}.mp3`);
+                        notes.push(note);
+                        notesOutput.push(`${firstChar}${i}`);
+                    }
+                }
+            }
+
+        }
+        function windowResized() {
+            resizeCanvas(windowWidth,windowHeight);
+        }
+        function draw(){
+            if(frameCount==100){
+                notes[2].play();
+            }
+            //background(255,20);
+            cImage=cam;
+            cImage.loadPixels();
+            var xNum=blockNum;
+            var yNum=xNum*(height/width);
+            var xWidth=Math.floor(cImage.width/xNum);
+            var yWidth=Math.floor(cImage.height/yNum);
+            image(cam, 0, 0, width, width * cam.height / cam.width);
+            if(frameCount%frameEs==0){
+                if(currentY<cImage.height){
+                    if(currentX<cImage.width){
+                        x=currentX;
+                        y=currentY;
+                        var currentIndex=y*4*cImage.width+x*4+4;//当前r的索引
+                        {/*图形绘制*/
+                            fill(cImage.pixels[currentIndex],cImage.pixels[currentIndex+1],cImage.pixels[currentIndex+2]);
+                            rect(x,y,xWidth,yWidth);
+                        }
+                        {/*音符输出*/
+                            let freq = map(cImage.pixels[currentIndex], 0, 255, 40, 880);
+                            osc.freq(freq);
+                            let amp = map(cImage.pixels[currentIndex+1], 0, 255, 1, 0.01);
+                            osc.amp(amp);
+                        }
+                        {/*字符输出*/
+                            textAlign(CENTER);
+                            fill(0);
+                            //text(notesOutput[currentNote1]+notesOutput[currentNote2]+notesOutput[currentNote3],matrixTranslate(x-xWidth/2,width),y+yWidth/2+5);
+                        }
+                        currentX+=xWidth;
+                    }else{
+                        currentX=0;
+                        currentY+=yWidth;
+                    }
+                }else{
+                    currentY=0;
+                }
+            }
+        }   
+    </script>
+    <title>mmusic-1</title>
+</head>
+<body>
+    
+</body>
+</html>

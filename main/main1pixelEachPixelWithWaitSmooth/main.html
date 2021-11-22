@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="../support/all_style.css">
+    <script src="../support/p5.min.js"></script>
+    <script src="../support/p5sound.js"></script>
+    <script>
+        /*全局设置*/
+        let blockNum=30;
+
+        let frameEs1=60;
+        let frameEs2=60;
+        let frameEs3=60;
+
+        let speed=30;
+
+        let cam;
+        let img;
+        let notes=[];
+        let notesOutput=[];
+
+        let prevNote1=0;
+        let prevNote2=0;
+        let prevNote3=0;
+
+        let prevIndex=0;
+
+        let cImage;
+        let currentY=1;
+        let currentX=1;
+
+        let osc1,fft1;
+        let osc2,fft2;
+        let osc3,fft3;
+
+        function setup() {
+            createCanvas(windowWidth, windowHeight);
+            smooth();
+            cam=createCapture(VIDEO);
+            cam.size(windowWidth, windowHeight);
+            cam.hide();
+            {/*预加载音源*/
+                let firstCharSet=["A","B","C","E","G"];
+                //let firstCharSet=["C","E","G"];
+                for(var i=1;i<=7;i++){
+                    for(var j=0;j<firstCharSet.length;j++){
+                        let firstChar=firstCharSet[j];
+                        let note=loadSound(`../support/piano/${firstChar}${i}.mp3`);
+                        notes.push(note);
+                        notesOutput.push(`${firstChar}${i}`);
+                    }
+                }
+            }
+            {
+                osc1 = new p5.TriOsc();
+                osc1.amp(0.5);
+                fft1 = new p5.FFT();
+                osc1.start();
+                osc2 = new p5.TriOsc();
+                osc2.amp(0.5);
+                fft2 = new p5.FFT();
+                osc2.start();
+                osc3 = new p5.TriOsc();
+                osc3.amp(0.5);
+                fft3 = new p5.FFT();
+                osc3.start();
+            }
+            {
+                cImage=cam;
+                cImage.loadPixels();
+            }
+        }
+        function windowResized() {
+            resizeCanvas(windowWidth,windowHeight);
+        }
+        function draw(){
+            background(255,20);
+            if(frameCount==100){
+                notes[2].play();
+            }
+            //image(cam,0,0, width, width * cam.height / cam.width);
+            //noStroke();
+            speed=map(mouseX,0,width,30,1);
+            cImage=cam;
+            cImage.loadPixels();
+            var xNum=blockNum;
+            var yNum=xNum*(height/width);
+            var xWidth=Math.floor(cImage.width/xNum);
+            var yWidth=Math.floor(cImage.height/yNum);
+            if(currentY<cImage.height-1){
+                if(currentX<cImage.width-1){
+                    x=currentX;
+                    y=currentY;
+                    var currentIndex=y*4*cImage.width+x*4+4;//当前r的索引
+                    /*
+                    var prevTIndex=currentIndex-4*cImage.width;
+                    var prevBIndex=currentIndex+4*cImage.width;
+                    var prevLIndex=currentIndex-1;
+                    var prevRIndex=currentIndex+1;
+                    var avgColor=Math.floor((cImage.pixels[currentIndex]+cImage.pixels[currentIndex+1]+cImage.pixels[currentIndex+2])/3);
+                    */
+                    {/*图形绘制*/
+                        stroke(255-cImage.pixels[currentIndex],255-cImage.pixels[currentIndex+1],255-cImage.pixels[currentIndex+2]);
+                        fill(cImage.pixels[currentIndex],cImage.pixels[currentIndex+1],cImage.pixels[currentIndex+2]);
+                        rect(x,y,xWidth,yWidth);
+                    }
+                    {/*音符输出*/
+                        var currentNote1=Math.floor(map(cImage.pixels[currentIndex],0,255,0,notes.length-1));
+                        var currentNote2=Math.floor(map(cImage.pixels[currentIndex+1],0,255,0,notes.length-1));
+                        var currentNote3=Math.floor(map(cImage.pixels[currentIndex+2],0,255,0,notes.length-1));
+                        if(frameCount%frameEs1==0){
+                            let freq = map(cImage.pixels[currentIndex], 0, 255, 40, 880);
+                            osc1.freq(freq);
+                            let amp = map(cImage.pixels[currentIndex+1], 0, 255, 1, 0.01);
+                            osc1.amp(amp);
+                        }
+                        if(frameCount%frameEs2==0){
+                            let freq = map(cImage.pixels[currentIndex], 0, 255, 40, 880);
+                            osc2.freq(freq);
+                            let amp = map(cImage.pixels[currentIndex+1], 0, 255, 1, 0.01);
+                            osc2.amp(amp);                        
+                        }
+                        if(frameCount%frameEs3==0){
+                            let freq = map(cImage.pixels[currentIndex+2], 0, 255, 40, 880);
+                            osc3.freq(freq);
+                            let amp = map(cImage.pixels[currentIndex+1], 0, 255, 1, 0.01);
+                            osc3.amp(amp);                        
+                        }
+                        {/*时值*/
+                            let delay1=Math.floor(map(cImage.pixels[currentIndex],255,0,1,5));
+                            let delay2=Math.floor(map(cImage.pixels[currentIndex+1],255,0,1,5));
+                            let delay3=Math.floor(map(cImage.pixels[currentIndex+2],255,0,1,5));
+                            frameEs1=Math.floor(delay1*speed);
+                            frameEs2=Math.floor(delay2*speed);
+                            frameEs3=Math.floor(delay3*speed);
+                        }
+                        /*
+                        prevNote1=currentNote1;
+                        prevNote2=currentNote2;
+                        prevNote3=currentNote3;
+                        prevIndex=currentIndex;
+                        */
+                    }
+                    {/*字符输出*/
+                        noStroke();
+                        textAlign(CENTER);
+                        fill(0);
+                        textSize(50);
+                        text(notesOutput[currentNote1]+" "+notesOutput[currentNote2]+" "+notesOutput[currentNote3],width/2,height/2+5);
+                    }
+                    currentX+=xWidth;
+                }else{
+                    currentX=0;
+                    currentY+=yWidth;
+                }
+            }else{
+                currentY=0;
+            }
+        }   
+    </script>
+    <title>mmusic-1</title>
+</head>
+<body>
+    
+</body>
+</html>

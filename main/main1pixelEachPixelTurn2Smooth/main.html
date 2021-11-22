@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="../support/all_style.css">
+    <script src="../support/p5.min.js"></script>
+    <script src="../support/p5sound.js"></script>
+    <script>
+        /*全局设置*/
+        let blockNum=100;
+        let frameEs=1;
+
+        let cam;
+        let img;
+        let notes=[];
+        let notesOutput=[];
+
+        let cImage;
+        let y=100;
+        let x=100;
+
+        let osc, fft;
+
+        function setup() {
+            createCanvas(windowWidth, windowHeight);
+            smooth();
+            cam=createCapture(VIDEO);
+            cam.size(windowWidth, windowHeight);
+            cam.hide();
+            {/*预加载音源*/
+                let firstCharSet=["B","C","E","G"];
+                //let firstCharSet=["C","E","G"];
+                for(var i=1;i<=7;i++){
+                    for(var j=0;j<firstCharSet.length;j++){
+                        let firstChar=firstCharSet[j];
+                        let note=loadSound(`../support/piano/${firstChar}${i}.mp3`);
+                        notes.push(note);
+                        notesOutput.push(`${firstChar}${i}`);
+                    }
+                }
+            }
+            osc = new p5.TriOsc(); // set frequency and type
+            osc.amp(0.5);
+            
+            fft = new p5.FFT();
+            osc.start();
+
+            {
+                cImage=cam;
+                cImage.loadPixels();
+            }
+        }
+        function windowResized() {
+            resizeCanvas(windowWidth,windowHeight);
+        }
+        function draw(){
+            //frameEs=Math.floor(map(mouseX,0,width,1,60));
+            background(255,1);
+            cImage=cam;
+            cImage.loadPixels();
+            image(cam, 0, 0, width, width * cam.height / cam.width);
+            var xNum=blockNum;
+            var yNum=xNum*(height/width);
+            var xWidth=Math.floor(cImage.width/xNum);
+            var yWidth=Math.floor(cImage.height/yNum);
+            if(frameCount==200){
+                notes[2].play();
+            }
+            function toX(index){
+                return((index % (cImage.width*4))/4);
+            }
+            function toY(index){
+                return(((index-(index % (cImage.width*4)))/cImage.width)/4-1);
+            }
+            if(frameCount%frameEs==0){
+                if(y<cImage.height-1){
+                    if(x<cImage.width-1){
+                        var currentIndex=y*4*cImage.width+x*4+4;//当前r的索引
+                        var prevTIndex=currentIndex-4*cImage.width;
+                        var prevBIndex=currentIndex+4*cImage.width;
+                        var prevLIndex=currentIndex-4;
+                        var prevRIndex=currentIndex+4;
+                        let avgT=(cImage.pixels[prevTIndex]+cImage.pixels[prevTIndex+1]+cImage.pixels[prevTIndex+2])/3;
+                        let avgB=(cImage.pixels[prevBIndex]+cImage.pixels[prevBIndex+1]+cImage.pixels[prevBIndex+2])/3;
+                        let avgL=(cImage.pixels[prevLIndex]+cImage.pixels[prevLIndex+1]+cImage.pixels[prevLIndex+2])/3;
+                        let avgR=(cImage.pixels[prevRIndex]+cImage.pixels[prevRIndex+1]+cImage.pixels[prevRIndex+2])/3;
+                        {/*图形绘制*/
+                            stroke(255-cImage.pixels[currentIndex],255-cImage.pixels[currentIndex+1],255-cImage.pixels[currentIndex+2]);
+                            fill(cImage.pixels[currentIndex],cImage.pixels[currentIndex+1],cImage.pixels[currentIndex+2]);
+                            rect(x,y,xWidth,yWidth);
+                        }
+                        {/*音符输出*/
+                            try{
+                                let freq = map(cImage.pixels[currentIndex], 0, 255, 40, 880);
+                                osc.freq(freq);
+                                let amp = map(cImage.pixels[currentIndex+1], 0, 255, 1, 0.01);
+                                osc.amp(amp);
+                            }catch{
+
+                            }
+                        }
+                        if(max(avgT,avgB,avgL,avgR)==avgT){
+                            y+=xWidth;
+                        }else if(max(avgT,avgB,avgL,avgR)==avgB){
+                            y-=xWidth;
+                        }else if(max(avgT,avgB,avgL,avgR)==avgL){
+                            x-=yWidth;
+                        }else{
+                            x+=yWidth;
+                        }
+                    }else{
+                        x=10;
+                    }
+                }else{
+                    y=10;
+                }
+            }
+        }   
+    </script>
+    <title>mmusic-1</title>
+</head>
+<body>
+    
+</body>
+</html>
